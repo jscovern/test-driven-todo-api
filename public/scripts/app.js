@@ -1,23 +1,19 @@
 // wait for DOM to load before running JS
 $(document).ready(function() {
 
-  var app = new App();
-  app.render();
-  app.getTodos();
-
   function App() {
     this.baseUrl = '/api/todos';
     this.allTodos= [];
     this.$todosList = $('#todos-list');
     this.$createTodo = $('#create-todo');
     this.source = $('#todos-template').html();
-    this.template = Handlebars.compile(source);
+    this.template = Handlebars.compile(this.source);
   }
 
   App.prototype = {
     render: function() {
       this.$todosList.empty();
-      var todosHTML = template({ todos: allTodos });
+      var todosHTML = this.template({ todos: this.allTodos });
       this.$todosList.append(todosHTML);
     },
     getTodos: function() {
@@ -31,54 +27,48 @@ $(document).ready(function() {
         }
       });
     },
+    submitNewTodo: function() {
+      // listen for submit even on form
+      this.$createTodo.on('submit', function (event) {
+        event.preventDefault();
+
+        // serialze form data
+        var newTodo = $(this).serialize();
+
+        // POST request to create new todo
+        $.ajax({
+          method: "POST",
+          url: this.baseUrl,
+          data: newTodo,
+          success: function onCreateSuccess(json) {
+            console.log(json);
+
+            // add new todo to `allTodos`
+            this.allTodos.push(json);
+
+            // render all todos to view
+            this.render();
+          }
+        });
+        // reset the form
+        this.$createTodo[0].reset();
+        this.$createTodo.find('input').first().focus();
+      });
+    }
 
   };
 
-  // GET all todos on page load
-  $.ajax({
-    method: "GET",
-    url: baseUrl,
-    success: function onIndexSuccess(json) {
-      console.log(json);
+  var app = new App();
+  app.getTodos();
+  app.submitNewTodo();
+  app.render();
 
-      // set `allTodos` to todo data (json.data) from API
-      allTodos = json.todos;
 
-      // render all todos to view
-      render();
-    }
-  });
 
-  // listen for submit even on form
-  $createTodo.on('submit', function (event) {
-    event.preventDefault();
 
-    // serialze form data
-    var newTodo = $(this).serialize();
-
-    // POST request to create new todo
-    $.ajax({
-      method: "POST",
-      url: baseUrl,
-      data: newTodo,
-      success: function onCreateSuccess(json) {
-        console.log(json);
-
-        // add new todo to `allTodos`
-        allTodos.push(json);
-
-        // render all todos to view
-        render();
-      }
-    });
-
-    // reset the form
-    $createTodo[0].reset();
-    $createTodo.find('input').first().focus();
-  });
 
   // add event-handlers to todos for updating/deleting
-  $todosList
+  app.$todosList
 
     // for update: submit event on `.update-todo` form
     .on('submit', '.update-todo', function (event) {
